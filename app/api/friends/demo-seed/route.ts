@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getStore, jsonError } from "@/lib/api-session";
 
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return jsonError("Demo seed is not available in production", 403);
+  }
+
   const user = await getSessionUser(request);
   if (!user) {
     return jsonError("Unauthorized", 401);

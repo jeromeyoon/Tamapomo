@@ -142,7 +142,7 @@ const DEFAULT_CARE = 3;
 // 게이지 자연 감소 (⚠️ 테스트용 30초. 배포 시 상향, 예: 30분)
 const CARE_DECAY_INTERVAL_MS = 30_000;
 
-type Feeling = "sick" | "tired" | "dirty" | "happy";
+type Feeling = "sick" | "tired" | "dirty" | "bored" | "happy";
 
 const GROWTH_CONFIG = getGrowthConfig();
 const HATCH_FOCUS_MINUTES = GROWTH_CONFIG.hatchMinutes;
@@ -411,23 +411,6 @@ function getCareIcon(kind: CareKind) {
   return Gamepad2;
 }
 
-function getCareStatusLabel({
-  hatched,
-  hunger,
-  energy,
-  health,
-  cleanliness,
-  affection
-}: Pick<CareState, "hatched" | "hunger" | "energy" | "health" | "cleanliness" | "affection">) {
-  if (!hatched) return "부화 준비 중";
-  if (health <= 1) return "살짝 아파요";
-  if (energy <= 1) return "졸려요";
-  if (cleanliness <= 1) return "씻고 싶어요";
-  if (hunger <= 1) return "배고파요";
-  if (affection <= 1) return "놀고 싶어요";
-  return "컨디션 좋음";
-}
-
 function getRecommendedCareKinds({
   hunger,
   energy,
@@ -657,7 +640,7 @@ export function PomoChiApp() {
       setAffection((current) => clampHeart(current + 1));
       applyRandomTimerCondition();
     }
-  }, [pauseCount, remainingSeconds, timerState, visibilityInterruptions]);
+  }, [pauseCount, remainingSeconds, timerState, visibilityInterruptions, showConditionEffect, applyRandomTimerCondition]);
 
   const todaySessions = useMemo(() => {
     const today = getLocalDateKey();
@@ -1017,7 +1000,7 @@ export function PomoChiApp() {
     }
   };
 
-  const applyCareDrop = (target: CareDropTarget) => {
+  const applyCareDrop = useCallback((target: CareDropTarget) => {
     const drop = (current: number) => clampHeart(current - 1);
 
     if (target === "health") {
@@ -1027,9 +1010,9 @@ export function PomoChiApp() {
     } else {
       setAffection(drop);
     }
-  };
+  }, []);
 
-  const showCareEffect = (kind: CareKind) => {
+  const showCareEffect = useCallback((kind: CareKind) => {
     setLastCareKind(kind);
     if (careEffectTimerRef.current !== null) {
       window.clearTimeout(careEffectTimerRef.current);
@@ -1038,9 +1021,9 @@ export function PomoChiApp() {
       setLastCareKind(null);
       careEffectTimerRef.current = null;
     }, CARE_EFFECT_DURATION_MS);
-  };
+  }, []);
 
-  const showConditionEffect = (kind: ConditionKind) => {
+  const showConditionEffect = useCallback((kind: ConditionKind) => {
     setLastConditionKind(kind);
     if (conditionEffectTimerRef.current !== null) {
       window.clearTimeout(conditionEffectTimerRef.current);
@@ -1049,9 +1032,9 @@ export function PomoChiApp() {
       setLastConditionKind(null);
       conditionEffectTimerRef.current = null;
     }, CONDITION_EFFECT_DURATION_MS);
-  };
+  }, []);
 
-  const applyRandomTimerCondition = () => {
+  const applyRandomTimerCondition = useCallback(() => {
     const event =
       TIMER_CONDITION_EVENTS[Math.floor(Math.random() * TIMER_CONDITION_EVENTS.length)] ??
       TIMER_CONDITION_EVENTS[0];
@@ -1059,7 +1042,7 @@ export function PomoChiApp() {
     applyCareDrop(event.target);
     setReaction(event.reaction);
     showConditionEffect(event.kind);
-  };
+  }, [showConditionEffect]);
 
   const buyCare = (kind: CareKind) => {
     const item = CARE_ITEMS[kind];
@@ -1095,10 +1078,12 @@ export function PomoChiApp() {
         ? "tired"
         : cleanliness <= 1
           ? "dirty"
-          : "happy";
+          : affection <= 1
+            ? "bored"
+            : "happy";
   const poopCount = !hatched ? 0 : cleanliness <= 0 ? 2 : cleanliness <= 1 ? 1 : 0;
   const pose =
-    feeling === "sick" ? "sick" : feeling === "tired" ? "tired" : isNight ? "doze" : "none";
+    feeling === "sick" ? "sick" : feeling === "tired" ? "tired" : feeling === "bored" ? "bored" : isNight ? "doze" : "none";
 
   const timerStatusLabel =
     timerState === "running"
@@ -1115,14 +1100,6 @@ export function PomoChiApp() {
   const ringDashOffset = RING_CIRCUMFERENCE * (1 - progress);
   const missionTargetCount = 2;
   const missionProgressCount = Math.min(todaySessions.length, missionTargetCount);
-  const careStatusLabel = getCareStatusLabel({
-    hatched,
-    hunger,
-    energy,
-    health,
-    cleanliness,
-    affection
-  });
   const recommendedCareKinds = getRecommendedCareKinds({
     hunger,
     energy,
@@ -1297,13 +1274,6 @@ export function PomoChiApp() {
                     data-pose={hatched && pose !== "none" ? pose : undefined}
                     aria-label={hatched ? "콩냥이" : "정체불명의 알 — 25분 집중하면 부화해요"}
                   >
-                    {timerState === "idle" && !isHatching && (
-                      <div className="zzz" aria-hidden="true">
-                        <span>z</span>
-                        <span>Z</span>
-                        <span>z</span>
-                      </div>
-                    )}
                     <div className="egg-creature">
                       {hatched ? (
                         <div key={lifeStage} className="creature-pop">
@@ -1314,6 +1284,18 @@ export function PomoChiApp() {
                           <RandomEgg seed={eggSeed} />
                         </div>
                       )}
+                      {timerState === "idle" && !isHatching && (
+                        <div className="zzz" aria-hidden="true">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      )}
+                      {hatched && (
+                        <ExpressionMarks feeling={feeling} isNight={isNight} />
+                      )}
+                      {hatched && <CharacterStatusLayer feeling={feeling} />}
+                      {hatched && poopCount > 0 && <PoopLayer count={poopCount} />}
                     </div>
                     {lastCareKind && (
                       <div className="care-effect" aria-hidden="true">
@@ -1329,10 +1311,6 @@ export function PomoChiApp() {
                         <span />
                       </div>
                     )}
-                    {hatched && (
-                      <ExpressionMarks feeling={feeling} isNight={isNight} />
-                    )}
-                    {hatched && poopCount > 0 && <PoopLayer count={poopCount} />}
                   </div>
 
                   <div className="ios-timer-text text-center">
@@ -1384,7 +1362,7 @@ export function PomoChiApp() {
                 {reaction}
               </p>
 
-              <div className="ios-home-meta grid w-full grid-cols-2 gap-2">
+              <div className="ios-home-meta grid w-full grid-cols-1 gap-2">
                 <button
                   type="button"
                   onClick={() => setShowDurationPanel((value) => !value)}
@@ -1398,12 +1376,6 @@ export function PomoChiApp() {
                   </span>
                   <span className="mt-0.5 block text-base font-black">{duration}분</span>
                 </button>
-                <div className="ios-meta-button rounded-2xl bg-white/70 px-3 py-2 text-left shadow-sm">
-                  <span className="block text-[10px] font-black uppercase tracking-wide text-[var(--muted)]">
-                    상태
-                  </span>
-                  <span className="mt-0.5 block truncate text-base font-black">{careStatusLabel}</span>
-                </div>
               </div>
 
               <p className="text-xs font-extrabold text-[var(--muted)]">
@@ -1420,8 +1392,10 @@ export function PomoChiApp() {
                       보상 포인트로 지금 필요한 것만 챙겨요.
                     </p>
                   </div>
-                  <span className="rounded-full bg-[var(--soft)] px-2.5 py-1 text-xs font-black">
-                    {careStatusLabel}
+                  <span className="ios-care-signal" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -1881,9 +1855,7 @@ function ExpressionMarks({ feeling, isNight }: { feeling: Feeling; isNight: bool
   if (feeling === "sick") {
     marks.push(
       <span key="sweat" className="mark-sweat" style={{ top: 38, left: 88 }} />,
-      <span key="queasy" className="mark-queasy" style={{ top: 28, left: 34 }}>
-        +
-      </span>
+      <span key="cough" className="mark-cough-puff" style={{ top: 48, left: 94 }} />
     );
   } else if (feeling === "dirty") {
     marks.push(
@@ -1891,11 +1863,15 @@ function ExpressionMarks({ feeling, isNight }: { feeling: Feeling; isNight: bool
       <span key="smudge-2" className="mark-smudge" style={{ top: 84, left: 92, height: 7, width: 12 }} />,
       <span key="fly" className="mark-fly" style={{ top: 32, left: 88 }} />
     );
+  } else if (feeling === "bored") {
+    marks.push(
+      <span key="bored-1" className="mark-bored-dot" style={{ top: 46, left: 32 }} />,
+      <span key="bored-2" className="mark-bored-dot" style={{ top: 40, left: 46 }} />,
+      <span key="bored-3" className="mark-bored-dot" style={{ top: 48, left: 60 }} />
+    );
   } else if (feeling === "tired" || isNight) {
     marks.push(
-      <span key="zzz" className="mark-zzz" style={{ top: 28, left: 90 }}>
-        z
-      </span>
+      <span key="sleep-bubble" className="mark-sleep-bubble" style={{ top: 30, left: 92 }} />
     );
   }
 
@@ -1906,6 +1882,48 @@ function ExpressionMarks({ feeling, isNight }: { feeling: Feeling; isNight: bool
   return (
     <div className="expression-marks" aria-hidden="true">
       {marks}
+    </div>
+  );
+}
+
+function CharacterStatusLayer({ feeling }: { feeling: Feeling }) {
+  if (feeling === "happy") {
+    return null;
+  }
+
+  return (
+    <div className={`character-status-layer character-status-layer-${feeling}`} aria-hidden="true">
+      {feeling === "sick" && (
+        <>
+          <span className="status-mask">
+            <span />
+          </span>
+          <span className="status-cough status-cough-one" />
+          <span className="status-cough status-cough-two" />
+        </>
+      )}
+      {feeling === "tired" && (
+        <>
+          <span className="status-heavy-lid status-heavy-lid-left" />
+          <span className="status-heavy-lid status-heavy-lid-right" />
+          <span className="status-sleep-bubble status-sleep-bubble-one" />
+          <span className="status-sleep-bubble status-sleep-bubble-two" />
+        </>
+      )}
+      {feeling === "dirty" && (
+        <>
+          <span className="status-dirt status-dirt-one" />
+          <span className="status-dirt status-dirt-two" />
+          <span className="status-dirt status-dirt-three" />
+        </>
+      )}
+      {feeling === "bored" && (
+        <>
+          <span className="status-bored-line status-bored-line-one" />
+          <span className="status-bored-line status-bored-line-two" />
+          <span className="status-bored-line status-bored-line-three" />
+        </>
+      )}
     </div>
   );
 }

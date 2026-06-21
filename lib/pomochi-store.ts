@@ -535,55 +535,55 @@ export function createPomochiStore(dbPath = process.env.POMOCHI_DB_FILE || DEFAU
     },
 
     async getProfile(userId: string, now = new Date()): Promise<Profile> {
-      const db = await readDb(dbPath);
-      const user = db.users.find((candidate) => candidate.id === userId);
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      let character = db.characters.find((candidate) => candidate.userId === userId);
-      if (!character) {
-        character = {
-          id: randomUUID(),
-          userId,
-          name: "불꽃이",
-          charType: "pyro",
-          createdAt: new Date().toISOString()
-        };
-        db.characters.push(character);
-        await writeDb(dbPath, db);
-      }
-
-      const sessions = db.focusSessions
-        .filter((session) => session.userId === userId)
-        .sort((first, second) => new Date(second.completedAt).getTime() - new Date(first.completedAt).getTime());
-
-      const todayStart = localDayStart(now);
-      const tomorrowStart = new Date(todayStart);
-      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-      const weekStart = localWeekStart(now);
-      const nextWeekStart = new Date(weekStart);
-      nextWeekStart.setDate(nextWeekStart.getDate() + 7);
-
-      const todaySessions = sessions.filter((session) =>
-        isInRange(new Date(session.completedAt), todayStart, tomorrowStart)
-      );
-      const weekSessions = sessions.filter((session) =>
-        isInRange(new Date(session.completedAt), weekStart, nextWeekStart)
-      );
-
-      return {
-        user: toSafeUser(user),
-        character,
-        sessions: sessions.map(({ userId: _userId, ...session }) => session),
-        stats: {
-          todayMinutes: todaySessions.reduce((sum, session) => sum + session.duration, 0),
-          todayCount: todaySessions.length,
-          weekMinutes: weekSessions.reduce((sum, session) => sum + session.duration, 0),
-          weekCount: weekSessions.length
+      return mutate((db) => {
+        const user = db.users.find((candidate) => candidate.id === userId);
+        if (!user) {
+          throw new Error("User not found");
         }
-      };
+
+        let character = db.characters.find((candidate) => candidate.userId === userId);
+        if (!character) {
+          character = {
+            id: randomUUID(),
+            userId,
+            name: "불꽃이",
+            charType: "pyro" as const,
+            createdAt: new Date().toISOString()
+          };
+          db.characters.push(character);
+        }
+
+        const sessions = db.focusSessions
+          .filter((session) => session.userId === userId)
+          .sort((first, second) => new Date(second.completedAt).getTime() - new Date(first.completedAt).getTime());
+
+        const todayStart = localDayStart(now);
+        const tomorrowStart = new Date(todayStart);
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+        const weekStart = localWeekStart(now);
+        const nextWeekStart = new Date(weekStart);
+        nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+
+        const todaySessions = sessions.filter((session) =>
+          isInRange(new Date(session.completedAt), todayStart, tomorrowStart)
+        );
+        const weekSessions = sessions.filter((session) =>
+          isInRange(new Date(session.completedAt), weekStart, nextWeekStart)
+        );
+
+        return {
+          user: toSafeUser(user),
+          character,
+          sessions: sessions.map(({ userId: _userId, ...session }) => session),
+          stats: {
+            todayMinutes: todaySessions.reduce((sum, session) => sum + session.duration, 0),
+            todayCount: todaySessions.length,
+            weekMinutes: weekSessions.reduce((sum, session) => sum + session.duration, 0),
+            weekCount: weekSessions.length
+          }
+        };
+      });
     }
   };
 }
