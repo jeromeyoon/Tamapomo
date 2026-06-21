@@ -11,14 +11,27 @@ export async function POST(request: NextRequest) {
   const body = await readJson(request);
   const duration = Number(body?.duration);
   const completedAt = typeof body?.completedAt === "string" ? new Date(body.completedAt) : new Date();
+  const startedAt = typeof body?.startedAt === "string" ? new Date(body.startedAt) : undefined;
+  const pauseCount = Number(body?.pauseCount ?? 0);
+  const visibilityInterruptions = Number(body?.visibilityInterruptions ?? 0);
+  const focusScore = Number(body?.focusScore ?? 100);
 
-  if (!Number.isFinite(duration) || Number.isNaN(completedAt.getTime())) {
+  if (
+    !Number.isFinite(duration) ||
+    Number.isNaN(completedAt.getTime()) ||
+    (startedAt && Number.isNaN(startedAt.getTime()))
+  ) {
     return jsonError("Invalid focus session", 400);
   }
 
   try {
     const store = getStore();
-    const session = await store.recordCompletedFocus(user.id, duration, completedAt);
+    const session = await store.recordCompletedFocus(user.id, duration, completedAt, {
+      startedAt,
+      pauseCount: Number.isFinite(pauseCount) ? pauseCount : 0,
+      visibilityInterruptions: Number.isFinite(visibilityInterruptions) ? visibilityInterruptions : 0,
+      focusScore: Number.isFinite(focusScore) ? focusScore : 100
+    });
     const profile = await store.getProfile(user.id, completedAt);
     return NextResponse.json({ session, profile });
   } catch (error) {

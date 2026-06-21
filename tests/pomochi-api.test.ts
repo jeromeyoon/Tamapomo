@@ -108,4 +108,95 @@ describe("PomoChi MVP-1 API", () => {
     expect(profileResponse.status).toBe(401);
     expect(completeResponse.status).toBe(401);
   });
+
+  it("adds a friend and returns focus rankings", async () => {
+    const { POST: signup } = await import("@/app/api/auth/signup/route");
+    const { POST: inviteFriend } = await import("@/app/api/friends/invite/route");
+    const { GET: rankings } = await import("@/app/api/friends/focus-rankings/route");
+    const { POST: completeFocus } = await import("@/app/api/focus/complete/route");
+
+    const meResponse = await signup(jsonRequest("http://test/api/auth/signup", {
+      email: "me@example.com",
+      password: "secret123"
+    }));
+    const meCookie = cookieHeader(meResponse);
+
+    const friendResponse = await signup(jsonRequest("http://test/api/auth/signup", {
+      email: "friend@example.com",
+      password: "secret123"
+    }));
+    const friendCookie = cookieHeader(friendResponse);
+
+    const inviteResponse = await inviteFriend(jsonRequest("http://test/api/friends/invite", {
+      email: "friend@example.com"
+    }, meCookie));
+
+    await completeFocus(jsonRequest("http://test/api/focus/complete", {
+      duration: 25,
+      completedAt: "2026-06-19T09:00:00+09:00"
+    }, meCookie));
+    await completeFocus(jsonRequest("http://test/api/focus/complete", {
+      duration: 50,
+      completedAt: "2026-06-19T10:00:00+09:00"
+    }, friendCookie));
+
+    const rankingResponse = await rankings(getRequest(
+      "http://test/api/friends/focus-rankings?period=today&now=2026-06-19T12:00:00%2B09:00",
+      meCookie
+    ));
+    const body = await rankingResponse.json();
+
+    expect(inviteResponse.status).toBe(200);
+    expect(rankingResponse.status).toBe(200);
+    expect(body.rankings.map((entry: { email: string; minutes: number }) => [entry.email, entry.minutes])).toEqual([
+      ["friend@example.com", 50],
+      ["me@example.com", 25]
+    ]);
+    expect(body.summary).toBe("friend@example.com님이 오늘 25분 앞서 있어요.");
+  });
+
+  it("seeds demo friends for the signed-in user", async () => {
+    const { POST: signup } = await import("@/app/api/auth/signup/route");
+    const { POST: seedDemoFriends } = await import("@/app/api/friends/demo-seed/route");
+    const { GET: friends } = await import("@/app/api/friends/route");
+    const { GET: rankings } = await import("@/app/api/friends/focus-rankings/route");
+    const { POST: completeFocus } = await import("@/app/api/focus/complete/route");
+
+    const meResponse = await signup(jsonRequest("http://test/api/auth/signup", {
+      email: "me@example.com",
+      password: "secret123"
+    }));
+    const meCookie = cookieHeader(meResponse);
+
+    await completeFocus(jsonRequest("http://test/api/focus/complete", {
+      duration: 25,
+      completedAt: "2026-06-19T09:00:00+09:00"
+    }, meCookie));
+
+    const seedResponse = await seedDemoFriends(jsonRequest("http://test/api/friends/demo-seed", {
+      now: "2026-06-19T12:00:00+09:00"
+    }, meCookie));
+    const seedBody = await seedResponse.json();
+
+    const friendsResponse = await friends(getRequest("http://test/api/friends", meCookie));
+    const friendsBody = await friendsResponse.json();
+    const rankingResponse = await rankings(getRequest(
+      "http://test/api/friends/focus-rankings?period=today&now=2026-06-19T12:00:00%2B09:00",
+      meCookie
+    ));
+    const rankingBody = await rankingResponse.json();
+
+    expect(seedResponse.status).toBe(200);
+    expect(seedBody.friends).toHaveLength(4);
+    expect(friendsBody.friends.map((friend: { email: string }) => friend.email)).toContain(
+      "minji.demo@pomochi.local"
+    );
+    expect(rankingBody.rankings.map((entry: { email: string; minutes: number }) => [entry.email, entry.minutes])).toEqual([
+      ["minji.demo@pomochi.local", 75],
+      ["junseo.demo@pomochi.local", 50],
+      ["me@example.com", 25],
+      ["harin.demo@pomochi.local", 15],
+      ["doyun.demo@pomochi.local", 0]
+    ]);
+  });
 });
