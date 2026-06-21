@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 128 128" role="img" aria-label="Tiny pastel cat virtual pet mascot">
+  <defs>
+    <radialGradient id="bodyClay" cx="42%" cy="30%" r="74%">
+      <stop offset="0%" stop-color="#f7fff9" />
+      <stop offset="42%" stop-color="#c7ead8" />
+      <stop offset="100%" stop-color="#a8d8c2" />
+    </radialGradient>
+    <radialGradient id="bellyClay" cx="45%" cy="22%" r="80%">
+      <stop offset="0%" stop-color="#fffaf1" />
+      <stop offset="100%" stop-color="#f4dfc3" />
+    </radialGradient>
+    <filter id="softMatte" x="-12%" y="-12%" width="124%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0.78 0 0 0 0 0.78 0 0 0 0 0.78 0 0 0 0.08 0" result="matteNoise" />
+      <feBlend in="SourceGraphic" in2="matteNoise" mode="multiply" />
+    </filter>
+  </defs>
+
+  <rect width="128" height="128" rx="0" fill="#f1f1ef" />
+
+  <g id="shadow">
+    <ellipse cx="64" cy="104" rx="32" ry="7" fill="#d7d3cc" opacity="0.58" />
+  </g>
+
+  <g id="body" filter="url(#softMatte)">
+    <circle cx="42" cy="42" r="13" fill="#c7ead8" />
+    <circle cx="86" cy="42" r="13" fill="#c7ead8" />
+    <ellipse cx="64" cy="66" rx="42" ry="43" fill="url(#bodyClay)" />
+    <ellipse cx="64" cy="78" rx="24" ry="20" fill="url(#bellyClay)" opacity="0.82" />
+    <ellipse cx="49" cy="32" rx="12" ry="7" fill="#ffffff" opacity="0.25" transform="rotate(-28 49 32)" />
+  </g>
+
+  <g id="face">
+    <circle cx="51" cy="61" r="3.4" fill="#3f372f" />
+    <circle cx="77" cy="61" r="3.4" fill="#3f372f" />
+    <path d="M59 73 Q64 77 69 73" fill="none" stroke="#3f372f" stroke-width="2.6" stroke-linecap="round" />
+    <ellipse cx="43" cy="70" rx="5.5" ry="3.8" fill="#f6a8b8" opacity="0.78" />
+    <ellipse cx="85" cy="70" rx="5.5" ry="3.8" fill="#f6a8b8" opacity="0.78" />
+  </g>
+</svg>

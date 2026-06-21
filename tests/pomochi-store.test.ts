@@ -79,4 +79,59 @@ describe("PomoChi MVP-1 server store", () => {
     expect(secondProfile.user.points).toBe(20);
     expect(secondProfile.stats.todayMinutes).toBe(0);
   });
+
+  it("adds friends and ranks their focus time for today and this week", async () => {
+    const store = createPomochiStore(dbFile);
+    const me = await store.signup("me@example.com", "secret123");
+    const friend = await store.signup("friend@example.com", "secret123");
+
+    await store.addFriendByEmail(me.user.id, "friend@example.com");
+    await store.recordCompletedFocus(me.user.id, 25, new Date("2026-06-19T09:00:00+09:00"));
+    await store.recordCompletedFocus(friend.user.id, 50, new Date("2026-06-19T10:00:00+09:00"));
+    await store.recordCompletedFocus(me.user.id, 15, new Date("2026-06-18T10:00:00+09:00"));
+
+    const friends = await store.getFriends(me.user.id);
+    const today = await store.getFocusRankings(me.user.id, "today", new Date("2026-06-19T12:00:00+09:00"));
+    const week = await store.getFocusRankings(me.user.id, "week", new Date("2026-06-19T12:00:00+09:00"));
+
+    expect(friends).toHaveLength(1);
+    expect(friends[0]).toMatchObject({ email: "friend@example.com" });
+    expect(today.rankings.map((entry) => [entry.email, entry.minutes, entry.rank, entry.isCurrentUser])).toEqual([
+      ["friend@example.com", 50, 1, false],
+      ["me@example.com", 25, 2, true]
+    ]);
+    expect(today.summary).toBe("friend@example.com님이 오늘 25분 앞서 있어요.");
+    expect(week.rankings.map((entry) => [entry.email, entry.minutes])).toEqual([
+      ["friend@example.com", 50],
+      ["me@example.com", 40]
+    ]);
+  });
+
+  it("seeds several demo friends with focus records for checking the competition UI", async () => {
+    const store = createPomochiStore(dbFile);
+    const me = await store.signup("me@example.com", "secret123");
+
+    await store.recordCompletedFocus(me.user.id, 25, new Date("2026-06-19T09:00:00+09:00"));
+
+    const seeded = await store.seedDemoFriends(me.user.id, new Date("2026-06-19T12:00:00+09:00"));
+    const seededAgain = await store.seedDemoFriends(me.user.id, new Date("2026-06-19T12:00:00+09:00"));
+    const friends = await store.getFriends(me.user.id);
+    const today = await store.getFocusRankings(me.user.id, "today", new Date("2026-06-19T12:00:00+09:00"));
+
+    expect(seeded.friends.map((friend) => friend.email)).toEqual([
+      "minji.demo@pomochi.local",
+      "junseo.demo@pomochi.local",
+      "harin.demo@pomochi.local",
+      "doyun.demo@pomochi.local"
+    ]);
+    expect(seededAgain.friends.map((friend) => friend.email)).toEqual(seeded.friends.map((friend) => friend.email));
+    expect(friends).toHaveLength(4);
+    expect(today.rankings.map((entry) => [entry.email, entry.minutes])).toEqual([
+      ["minji.demo@pomochi.local", 75],
+      ["junseo.demo@pomochi.local", 50],
+      ["me@example.com", 25],
+      ["harin.demo@pomochi.local", 15],
+      ["doyun.demo@pomochi.local", 0]
+    ]);
+  });
 });
