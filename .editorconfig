@@ -1,0 +1,47 @@
+# EditorConfig 도움말: https://editorconfig.org
+# VS Code, JetBrains, Sublime 등 에디터에서 자동 설정
+
+root = true
+
+# 모든 파일
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# JS/TS/React 파일
+[*.{js,jsx,ts,tsx}]
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# JSON 파일
+[*.json]
+indent_style = space
+indent_size = 2
+
+# YAML 파일
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# CSS/SCSS 파일
+[*.{css,scss}]
+indent_style = space
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# 설정 파일
+[.editorconfig]
+indent_style = space
+indent_size = 2
+
+# Node 패키지 설정
+[package.json]
+indent_style = space
+indent_size = 2
