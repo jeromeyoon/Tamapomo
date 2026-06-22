@@ -1,11 +1,38 @@
+# 빌드 결과물
 .data/
 .next/
 .next-build/
+out/
+dist/
 node_modules/
 
+# 로그
 *.log
 *.tsbuildinfo
 
+# 환경변수
 .env
 .env.*
 !.env.example
+
+# Capacitor iOS
+ios/
+android/
+
+# Xcode
+*.xcworkspace
+*.xcodeproj
+.DS_Store
+DerivedData/
+*.swiftpm
+.swiftpm/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
